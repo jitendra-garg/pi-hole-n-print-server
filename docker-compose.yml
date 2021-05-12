@@ -1,0 +1,58 @@
+version: "2.1"
+
+volumes:
+  pihole_config:
+  dnsmasq_config:
+  cups:
+
+services:
+  # https://hub.docker.com/r/pihole/pihole
+  pihole:
+    build: ./balena-pihole/pihole
+    privileged: true
+    volumes:
+      - "pihole_config:/etc/pihole"
+      - "dnsmasq_config:/etc/dnsmasq.d"
+    dns:
+      - "127.0.0.1"
+      - "1.1.1.1"
+    network_mode: host
+
+  # https://github.com/klutchell/unbound-dnscrypt
+  unbound:
+    build: ./balena-pihole/unbound
+    privileged: true
+    ports:
+      - "5053:5053/tcp"
+      - "5053:5053/udp"
+
+  # https://github.com/balenablocks/fbcp
+  fbcp:
+    image: balenablocks/fbcp:1.0.0
+    privileged: true
+
+  # prevent plymouth from blocking fbcp
+  # https://github.com/klutchell/balena-pihole/issues/25
+  # https://github.com/balena-os/meta-balena/issues/1772
+  dbus:
+    build: balena-pihole/dbus
+    restart: on-failure
+    labels:
+        io.balena.features.dbus: "1"
+
+  # https://github.com/willswire/balenaPrint
+  cups:
+    build: ./balenaPrint/cups
+    ports:
+      - "80"
+    privileged: true
+    restart: always
+    network_mode: host
+    volumes:
+      - 'cups:/etc/cups'
+    labels:
+      io.balena.features.kernel-modules: '1'
+      io.balena.features.firmware: '1'
+      io.balena.features.dbus: '1'
+      io.balena.features.supervisor-api: '1'
+      io.balena.features.balena-api: '1'
